@@ -32,11 +32,21 @@ module Prelim where
 data InstCode = ICOperator | ICDecider
 
 
--- An instruction cell organization:
+-- An INSTRUCTION CELL organization:
 -- 
---  |Instruction register|  (holds opcodes)
---  |Operand register 1  | 
---  |Operand register 2  | 
+--  OLD:
+--  *----------------------*
+--  | Instruction register |
+--  | Operand register 1   | (holds opcodes)
+--  | Operand register 2   | 
+--  *----------------------*
+
+-- NEW:
+--  *----------------------*
+--  | Instruction register |
+--  | Operand register 1   | (holds opcodes)
+--  | Operand register 2   | 
+--  *----------------------*
 
 newtype Address = Address Int 
 
@@ -45,15 +55,35 @@ newtype OperandRegister a = OR a
 data OpCode = OpCode
 data PredCode = PredCode
 data BoolCode = BoolCode
-data ResultTag = ResultTag
+data ResultTag = RTGate | RTValue
 
 data InstructionRegister = 
-    IROp OpCode Address |
-    IRPred PredCode ResultTag Address |
-    IRBool BoolCode ResultTag Address
+     IROp OpCode Address 
+    | IRPred PredCode ResultTag Address 
+    | IRBool BoolCode ResultTag Address
+
+data GatingCode = 
+    GCNo 
+    | GCTrue
+    | GCFalse
+    | GCConstant
+
+
+data ControlReceiver
+data DataReceiver
+
+-- This int can be float as well, or whatever
+data OperandRegisterData =  ORData GatingCode Int
+data OperandRegisterBool = ORBool GatingCode ControlReceiver ResultTag DataReceiver
+
+
 
 -- The latent instruction cell that is executed.
-data InstCell = InstCell
+-- This is very strange, I don't understand why it's built this way
+data InstCell = IC_IDD InstructionRegister OperandRegisterData OperandRegisterData
+            | IC_IBB InstructionRegister OperandRegisterBool OperandRegisterBool
+            | IC_IID InstructionRegister InstructionRegister OperandRegisterData
+            | IC_IIB InstructionRegister InstructionRegister OperandRegisterBool
 
 
 -- The active operational unit.
