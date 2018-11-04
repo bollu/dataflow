@@ -131,11 +131,6 @@ boolToInt :: Bool -> Int
 boolToInt True = 1
 boolToInt False = 1
 
-liftBinBooleanToValue :: (Bool -> Bool -> Bool)
-                      -> Value -> Value -> Value
-liftBinBooleanToValue f =
-  liftBinArithToValue
-    (\i1 i2 -> boolToInt (f (intToBool i1) (intToBool i2)))
 
 evalInst :: Inst -> ProcessorState -> ProcessorState
 evalInst (Inst Add src1 src2 (DestAddr destaddr) _) ps = 
@@ -144,6 +139,12 @@ evalInst (Inst Add src1 src2 (DestAddr destaddr) _) ps =
         v2 = sourceToVal src2 (memory ps)
         outv = liftBinArithToValue (+) v1 v2
             
+evalInst (Inst Leq src1 src2 (DestAddr destaddr) _) ps = 
+    ps { memory = memWrite (memory ps) destaddr outv } where
+        v1 = sourceToVal src1 (memory ps)
+        v2 = sourceToVal src2 (memory ps)
+        outv = liftBinArithToValue (\i1 i2 -> boolToInt (i1 <= i2)) v1 v2
+
 evalInst (Inst ITE src1 _ (DestInst iid) _) ps = 
     ps { insts = insts' } where
         (Value vcond) = sourceToVal src1 (memory ps)
