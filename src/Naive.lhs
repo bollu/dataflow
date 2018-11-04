@@ -166,8 +166,8 @@ initProcessor insts = ProcessorState {
 }
 
 traceProcessor :: ProcessorState -> [ProcessorState]
-traceProcessor ps = 
-    case stepProcessor ps of
-        Just ps' -> ps':traceProcessor ps'
-        Nothing -> []
+traceProcessor ps = ps:pss
+    where pss = case stepProcessor ps of
+                    Just ps' -> ps':traceProcessor ps'
+                    Nothing -> []
 \end{code}
