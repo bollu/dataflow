@@ -37,7 +37,13 @@ gatingToFireState _ = CantFire
 -- Sources for an instruction.
 data Source = SourceImm Value | SourceAddr Addr deriving(Eq, Show)
 
-data OpCodeBinary = Add | Mul | Leq | Eq | Xor | Or | Not 
+newtype InstId = InstId Int deriving(Eq,Show, Ord)
+
+-- Destinations for an instruction, either an address or another instruction
+-- in the case of control
+data Dest = DestInst InstId | DestAddr Addr deriving(Eq, Show)
+
+data OpCodeBinary = Add | Leq | ITE
     deriving(Eq, Show)
 
 -- types of instructions 
@@ -45,11 +51,11 @@ data Inst =  Inst {
     opcode :: OpCodeBinary,
     source1 :: Source,
     source2 :: Source,
-    dest :: Addr,
+    dest :: Dest,
     gating :: Gating
 } deriving(Eq, Show)
 
-newtype Memory = Memory (M.Map Addr Value)
+newtype Memory = Memory (M.Map Addr Value) deriving(Show)
 
 -- Tell us if we can read (ie, can fire) a memory state
 canFireMemAddr :: Memory -> Addr -> FireState
@@ -62,6 +68,9 @@ canFireMemAddr (Memory mem) addr = boolToFireState $ mem M.!? addr == Nothing
 canFireSource :: Memory -> Source -> FireState
 canFireSource mem (SourceAddr addr)  = canFireMemAddr mem addr
 canFireSource _ _ = CanFire
+
+memInit :: Memory
+memInit = Memory M.empty
 
 memWrite :: Memory -> Addr -> Value -> Memory
 memWrite (Memory mem) addr v = Memory $ M.insert addr v mem 
@@ -79,10 +88,12 @@ canFireInst mem i =
     canFireSource mem (source2 i) <>
     (gatingToFireState (gating i))
 
+
+type InstMap = M.Map InstId Inst
 data ProcessorState = ProcessorState {
     memory :: Memory,
-    insts :: [Inst]
-}
+    insts :: InstMap
+} deriving(Show)
 
 -- Convert a source to a value, by either reading from memory,
 -- or propogating the constant value
@@ -93,29 +104,53 @@ sourceToVal (SourceAddr a) mem = memRead mem a
 liftBinArithToValue :: (Int -> Int -> Int) -> Value -> Value -> Value
 liftBinArithToValue  f (Value i) (Value j) = Value (f i j)
 
-liftBinBooleanToValue :: (Bool -> Bool -> Bool) -> Value -> Value -> Value
-liftBinBooleanToValue f   =
-    liftBinArithToValue (\i1 i2 -> boolToInt (f (intToBool i1) (intToBool i2)))  where
-        intToBool 1 = True
-        intToBool 0 = False
+  
+intToBool :: Int -> Bool
+intToBool 1 = True
+intToBool 0 = False
 
-        boolToInt True = 1
-        boolToInt False = 1
+boolToInt :: Bool -> Int
+boolToInt True = 1
+boolToInt False = 1
 
-evalInst :: Inst -> Memory -> Memory
-evalInst (Inst opcode src1 src2 dest _) mem = memWrite mem dest outv where
-    v1 = sourceToVal src1 mem
-    v2 = sourceToVal src2 mem
-    outv = case opcode of
-            Add -> liftBinArithToValue (+) v1 v2
+liftBinBooleanToValue :: (Bool -> Bool -> Bool)
+                      -> Value -> Value -> Value
+liftBinBooleanToValue f =
+  liftBinArithToValue
+    (\i1 i2 -> boolToInt (f (intToBool i1) (intToBool i2)))
+
+evalInst :: Inst -> ProcessorState -> ProcessorState
+evalInst (Inst Add src1 src2 (DestAddr destaddr) _) ps = 
+    ps { memory = memWrite (memory ps) destaddr outv } where
+        v1 = sourceToVal src1 (memory ps)
+        v2 = sourceToVal src2 (memory ps)
+        outv = liftBinArithToValue (+) v1 v2
+            
+evalInst (Inst ITE src1 _ (DestInst iid) _) ps = 
+    ps { insts = insts' } where
+        (Value vcond) = sourceToVal src1 (memory ps)
+        g = Gating (Just (intToBool vcond))
+        insts' = M.adjust (\i -> i {gating=g}) iid (insts ps)
 
 stepProcessor :: ProcessorState -> Maybe ProcessorState 
 stepProcessor ps = 
     do 
-        let ais = filter ((== CanFire) . (canFireInst (memory ps))) (insts ps)
-        curi <- listToMaybe ais
-        let mem' = evalInst  curi (memory ps) 
+        let ais = M.filter ((== CanFire) . (canFireInst (memory ps))) (insts ps)
+        curi <- snd <$> (listToMaybe . M.toList $ ais)
+        let ps' = evalInst  curi ps
+        let insts' = M.drop 1 (insts ps')
+        
+        return $ ps' {insts = insts'}
 
-        let insts' = drop 1 (insts ps)
-        return $ ProcessorState mem' insts'
+initProcessor :: M.Map InstId Inst -> ProcessorState
+initProcessor insts = ProcessorState {
+    memory = memInit,
+    insts = insts
+}
+
+traceProcessor :: ProcessorState -> [ProcessorState]
+traceProcessor ps = 
+    case stepProcessor ps of
+        Just ps' -> ps':traceProcessor ps'
+        Nothing -> []
 \end{code}
