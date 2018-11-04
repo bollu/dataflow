@@ -23,12 +23,14 @@ boolToFireState :: Bool -> FireState
 boolToFireState True = CanFire
 boolToFireState False = CantFire
 
-fireStateToFilter :: FireState -> Bool
-fireStateToFilter CanFire = True
-fireStateToFilter CantFire = False
+canFire :: FireState -> Bool
+canFire CanFire = True
+canFire CantFire = False
 
 
--- A value that is not gated is always active
+-- A value that is not gated is always fireable
+-- A value that is gated needs to be enabled, and must have
+-- the gating to be set to false
 gatingToFireState :: Gating -> FireState
 gatingToFireState NoGating = CanFire
 gatingToFireState (Gating (Just True)) = CanFire
@@ -89,7 +91,23 @@ canFireInst mem i =
     (gatingToFireState (gating i))
 
 
-type InstMap = M.Map InstId Inst
+newtype InstMap = InstMap (M.Map InstId Inst) deriving(Show)
+
+setInstGating :: InstId -> Bool -> InstMap -> InstMap
+setInstGating iid g (InstMap im) =
+  InstMap $ M.adjust
+        (\inst -> inst { gating = Gating (Just g) }) iid im
+
+getFireableInst :: InstMap -> Maybe (InstId, Inst)
+getFireableInst (InstMap im) =
+  let im' = M.filter (canFire . gatingToFireState . gating) im
+  in if M.null im'
+  then Nothing
+  else Just $ M.elemAt 0 im'
+
+removeInst :: InstId -> InstMap -> InstMap
+removeInst iid (InstMap im) = InstMap $ M.delete iid im
+    
 data ProcessorState = ProcessorState {
     memory :: Memory,
     insts :: InstMap
@@ -129,23 +147,21 @@ evalInst (Inst Add src1 src2 (DestAddr destaddr) _) ps =
 evalInst (Inst ITE src1 _ (DestInst iid) _) ps = 
     ps { insts = insts' } where
         (Value vcond) = sourceToVal src1 (memory ps)
-        g = Gating (Just (intToBool vcond))
-        insts' = M.adjust (\i -> i {gating=g}) iid (insts ps)
+        insts' = setInstGating  iid (intToBool vcond) (insts ps)
 
 stepProcessor :: ProcessorState -> Maybe ProcessorState 
 stepProcessor ps = 
     do 
-        let ais = M.filter ((== CanFire) . (canFireInst (memory ps))) (insts ps)
-        curi <- snd <$> (listToMaybe . M.toList $ ais)
+        (curid, curi) <- getFireableInst (insts ps)
         let ps' = evalInst  curi ps
-        let insts' = M.drop 1 (insts ps')
+        let insts' = removeInst curid (insts ps)
         
         return $ ps' {insts = insts'}
 
 initProcessor :: M.Map InstId Inst -> ProcessorState
 initProcessor insts = ProcessorState {
     memory = memInit,
-    insts = insts
+    insts = InstMap insts
 }
 
 traceProcessor :: ProcessorState -> [ProcessorState]
