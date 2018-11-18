@@ -1,4 +1,6 @@
 \begin{code}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE GADTs #-}
 module Naive where
 import Data.Semigroup
 import qualified Data.Map.Strict as M
@@ -56,6 +58,7 @@ data Inst =  Inst {
     dest :: Dest,
     gating :: Gating
 } deriving(Eq, Show)
+
 
 newtype Memory = Memory (M.Map Addr Value) deriving(Show)
 
@@ -170,4 +173,5 @@ traceProcessor ps = ps:pss
     where pss = case stepProcessor ps of
                     Just ps' -> ps':traceProcessor ps'
                     Nothing -> []
+
 \end{code}
