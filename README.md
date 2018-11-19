@@ -17,6 +17,7 @@ Thus, shocked, I began to work on this library.
 # Reading
 ## Prior art in haskell
 - [`Opaleye.Queryarr`](http://hackage.haskell.org/package/opaleye-0.6.7003.1/docs/Opaleye-Internal-QueryArr.html)
+- [Causal commutative arrows](http://haskell.cs.yale.edu/wp-content/uploads/2012/06/FromJFP.pdf)
 
 ## Books and papers
 The [`reading/`](reading/) folder contains links to useful paper. In general,
