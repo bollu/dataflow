@@ -40,6 +40,11 @@ instance Arrow (FreeA eff) where
 
 ```
 
+- Turns out, [arrow desugaring is bad in GHC](https://stackoverflow.com/questions/45260173/proc-syntax-in-haskell-arrows-leads-to-severe-performance-penalty).
+I suppose it's upto someone who uses arrows to fix this?
+
+- **TODO: bench opaleye!** Perhaps this can be an interesting part of the finished product? (faster arrows)
+
 
 # Reading
 ## SPMD
