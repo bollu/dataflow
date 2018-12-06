@@ -67,7 +67,9 @@ executable dataflow-processor
   other-modules: Prelim,
                   Naive,
                   Arrow,
-                  Free
+                  Free,
+                  FreeExamples,
+                  NaiveExamples
   
   -- Base language which the package is written in.
   default-language:    Haskell2010

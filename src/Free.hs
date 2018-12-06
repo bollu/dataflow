@@ -1,7 +1,7 @@
-\begin{code}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Free where
 import Prelude()
 import Prelude hiding ((.), id)
@@ -36,38 +36,30 @@ newtype Addr = Addr Int
 instance Show Addr where
     show (Addr i) = "0x" ++ show i
 
-newtype Imm = Imm Int deriving(Eq)
-instance Show Imm where
+newtype Imm a = Imm a deriving(Eq)
+instance Show a => Show (Imm a) where
     show (Imm i) = "imm-" ++ show i
 
-newtype Reg = Reg Int deriving(Eq)
-instance Show Reg where
-    show (Reg i) = "reg-" ++ show i
+newtype Reg a = Reg a deriving(Eq)
+instance Show a => Show (Reg a) where
+    show (Reg a) = "reg-" ++ show a
 
-
-
--- MIPS register file: http://www.cs.uwm.edu/classes/cs315/Bacon/Lecture/HTML/ch05s03.html
--- replicate MIPS ISA: http://www.mrc.uidaho.edu/mrc/people/jff/digital/MIPSir.html
+-- MIPS register file: 
+-- http://www.cs.uwm.edu/classes/cs315/Bacon/Lecture/HTML/ch05s03.html
+-- replicate MIPS ISA: 
+-- http://www.mrc.uidaho.edu/mrc/people/jff/digital/MIPSir.html
+-- Show a => ... is a hack, FIXME!
 data Node i o where
     -- be a source of some immediate data
-    NImm :: a -> Node ()  (Imm a)
+    NImm :: Imm a -> Node ()  (Imm a)
     -- register, do I need this? or do only memory ops allow one to refer to a new regiser? Think
-    NReg :: a -> Node () (Reg a)
+    NReg :: Reg a -> Node () (Reg a)
     -- add two register values
     NAdd :: Node (Reg Int, Reg Int) (Reg Int)
     -- add register and immediate
     NAddI :: Node (Reg Int, Imm Int) (Reg Int)
-
-
     -- write some data into memory
     NIWriteMem :: a -> Node a Addr
 
+deriving instance (Show i, Show o) => Show (Node i o)
 
-instance (Show i, Show o) => Show (Node i o) where
-    show (NImm i) = show i
-    show (NReg r) = show r
-    show NAdd = show "add"
-    show NAddI = show "addi"
-
-
-\end{code}
