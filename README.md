@@ -1,7 +1,8 @@
 # An experimental Dataflow DSL within haskell
 
 The aim is to understand if Arrows are the right fit to express dataflow
-style computations in haskell.
+style computations in haskell. As we go along this process, we will proceed
+to rip of ISPC, shaders, and possibly large parts of Futhark.
 
 # History
 this repo started out as a humble interpreter for MIT's tagged token data flow architecutre.
@@ -52,6 +53,7 @@ I suppose it's upto someone who uses arrows to fix this?
 
 # Reading
 ## SPMD
+- [Blog posts by Matt pharr on the story of ISPC](https://pharr.org/matt/blog/2018/04/30/ispc-all.html)
 - [Intel SPMD compiler](https://ispc.github.io/)
 ## Prior art in haskell
 - [`Opaleye.Queryarr`](http://hackage.haskell.org/package/opaleye-0.6.7003.1/docs/Opaleye-Internal-QueryArr.html)
