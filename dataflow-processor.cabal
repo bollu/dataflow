@@ -45,7 +45,11 @@ extra-source-files:  ChangeLog.md
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
-test test
+custom-setup
+  setup-depends:
+    base,
+    Cabal,
+    cabal-doctest
 
 
 library
@@ -87,27 +91,30 @@ executable dfcc
   default-language:    Haskell2010
   
 -- Verify the results of the examples
-test-suite doctests
-  type:    exitcode-stdio-1.0
-  main-is: doctests.hs
-  default-language: Haskell2010
-  build-depends:
-    base    == 4.*,
-    doctest >= 0.11.1 && < 0.17,
-    machines
-  ghc-options: -Wall -threaded
-  hs-source-dirs: tests
-
--- test-suite tests
+-- test-suite doctests
 --   type:    exitcode-stdio-1.0
 --   main-is: doctests.hs
 --   default-language: Haskell2010
 --   build-depends:
---     base    == 4.*,
---     doctest >= 0.11.1 && < 0.17,
+--     base,
+--     doctest,
 --     dataflow
 --   ghc-options: -Wall -threaded
 --   hs-source-dirs: tests
+
+test-suite tests
+  type:    exitcode-stdio-1.0
+  main-is: unit.hs
+  default-language: Haskell2010
+  build-depends:
+    base,
+    tasty,
+    QuickCheck,
+    tasty-quickcheck,
+    tasty-hunit,
+    dataflow
+  ghc-options: -Wall -threaded
+  hs-source-dirs: tests
 -- 
 -- benchmark benchmarks
 --   default-language: Haskell2010
