@@ -2,9 +2,6 @@
  {-# LANGUAGE Arrows #-}
 
 module Main where
-import Prelim
-import Naive
-import qualified Arrow as A
 import Data.Traversable
 import qualified Data.Map.Strict as M
 import Control.Arrow

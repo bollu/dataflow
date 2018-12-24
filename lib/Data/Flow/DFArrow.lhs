@@ -1,7 +1,7 @@
 \begin{code}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE Arrows #-}
-module Arrow where
+module Data.Flow.DFArrow where
 import Prelude()
 import Prelude hiding ((.), id)
 import Control.Arrow

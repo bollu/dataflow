@@ -1,5 +1,5 @@
 \begin{code}
-module Prelim where
+module Data.Flow.Prelim where
 
 -- All notation follows paper: 
 -- A preliminary Architecture for a Basic Data-Flow Processor 

@@ -1,7 +1,7 @@
 \begin{code}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE GADTs #-}
-module Naive where
+module Data.Flow.Naive where
 import Data.Semigroup
 import qualified Data.Map.Strict as M
 import Data.Maybe (listToMaybe)

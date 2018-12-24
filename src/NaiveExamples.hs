@@ -1,12 +1,10 @@
  {-# LANGUAGE Arrows #-}
 module NaiveExamples(runNaiveExamples) where
-import Prelim
-import Naive
-import qualified Arrow as A
+import Data.Flow.Naive
 import Data.Traversable
 import qualified Data.Map.Strict as M
 import Control.Arrow
-
+import Control.Monad
 
 
 add :: Source -> Source -> Dest -> Gating -> Inst
@@ -29,5 +27,7 @@ program =
 
 
 runNaiveExamples :: IO ()
-runNaiveExamples = 
-        print A.p1
+runNaiveExamples = do
+  let p = initProcessor program
+  let sts = traceProcessor p
+  forM_ sts (\st -> putStrLn . show $ st) 
