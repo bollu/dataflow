@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 -- The name of the package.
-name:                dataflow-processor
+name:                dataflow
 
 -- The package version.  See the Haskell package versioning policy (PVP) 
 -- for standards guiding when and how versions should be incremented.
@@ -45,8 +45,24 @@ extra-source-files:  ChangeLog.md
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
+test test
 
-executable dataflow-processor
+
+library
+  exposed-modules:
+    Data.Flow,
+    Data.Flow.Prelim,
+    Data.Flow.Naive,
+    Data.Flow.DFArrow,
+    Data.Flow.FreeArrow
+    
+  build-depends:       base
+                     , containers
+
+  hs-source-dirs:      lib, lib/Data, lib/Data/Flow
+  default-language:    Haskell2010
+
+executable dfcc
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.lhs
   
@@ -59,18 +75,49 @@ executable dataflow-processor
   -- Other library packages from which modules are imported.
   build-depends:       base
                      , containers
+                     , dataflow
   
   -- Directories containing source files.
   hs-source-dirs:      src
 
   -- Other modules we depend on.
-  other-modules: Prelim,
-                  Naive,
-                  Arrow,
-                  Free,
-                  FreeExamples,
-                  NaiveExamples
+  other-modules: FreeExamples, NaiveExamples
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
   
+-- Verify the results of the examples
+test-suite doctests
+  type:    exitcode-stdio-1.0
+  main-is: doctests.hs
+  default-language: Haskell2010
+  build-depends:
+    base    == 4.*,
+    doctest >= 0.11.1 && < 0.17,
+    machines
+  ghc-options: -Wall -threaded
+  hs-source-dirs: tests
+
+-- test-suite tests
+--   type:    exitcode-stdio-1.0
+--   main-is: doctests.hs
+--   default-language: Haskell2010
+--   build-depends:
+--     base    == 4.*,
+--     doctest >= 0.11.1 && < 0.17,
+--     dataflow
+--   ghc-options: -Wall -threaded
+--   hs-source-dirs: tests
+-- 
+-- benchmark benchmarks
+--   default-language: Haskell2010
+--   type:             exitcode-stdio-1.0
+--   hs-source-dirs:   benchmarks
+--   main-is:          Benchmarks.hs
+--   ghc-options:      -O2 -rtsopts -threaded
+-- 
+--   build-depends:
+--     base                >= 4.9   && < 5,
+--     criterion           >= 0.6   && < 1.6,
+--     pipes               >= 4     && < 4.4,
+--     streaming           >= 0.1.4 && < 0.3
