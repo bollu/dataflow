@@ -1,9 +1,10 @@
 \begin{code}
- {-# LANGUAGE Arrows #-}
- {-# LANGUAGE TypeFamilies #-}
- {-# LANGUAGE GADTs #-}
- {-# LANGUAGE DataKinds #-}
- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Arrows #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Main where
 import Data.Traversable
@@ -11,24 +12,23 @@ import qualified Data.Map.Strict as M
 import Control.Arrow
 import FreeExamples
 import NaiveExamples
--- import Data.Vector
 import Control.Monad.Writer
 import Control.Monad.State
-
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.String
 
 -- | Width of the vector instruction
 newtype Width = Width Int
 
+-- | Identifier
 type Id = String
+
+-- | Index expression
 type Ix = Exp
+
+-- | Length expression
 type Length = Exp
 
-data Code = Skip
-  | Code :>>: Code
-  | For Id Exp Code
-  | Allocate Id Length
-  | Write Id Ix Exp
-  deriving(Eq, Show, Ord)
 
 -- | Eliminate superfluous skip expressions in the code.
 elimSkip :: Code -> Code
@@ -41,7 +41,15 @@ data Value =
   IntVal Int
   | FloatVal Float
   | BoolVal Bool
-  deriving(Eq, Show, Ord)
+  deriving(Eq, Ord)
+
+instance Pretty Value where
+  pretty (IntVal i) = pretty i
+  pretty (FloatVal f) = pretty f
+  pretty (BoolVal b) = pretty b
+
+instance Show Value where
+  showsPrec _ = renderShowS . layoutPretty defaultLayoutOptions . pretty
 
 data Exp =
   Var Id
@@ -57,7 +65,19 @@ data Exp =
   | LEq Exp Exp
   | Min Exp Exp
   | IfThenElse Exp Exp Exp 
-  deriving(Show, Eq, Ord)
+  deriving(Eq, Ord)
+
+prettySexp :: [Doc a] -> Doc a
+prettySexp as = nest 2 .  parens .  hsep $ as
+
+instance Pretty Exp where
+  pretty (Var id) = pretty id
+  pretty (Literal l) = pretty l
+  pretty (Index id ix) = pretty id <> brackets (pretty ix)
+  pretty (e :+: e') = prettySexp $ [pretty "+", pretty e, pretty e']
+
+instance Show Exp where
+  showsPrec _ = renderShowS . layoutPretty defaultLayoutOptions . pretty
 
 instance Num Exp where
   (+) = (:+:)
@@ -66,6 +86,26 @@ instance Num Exp where
   fromInteger = Literal . IntVal . fromInteger
   abs = error "no abs on Exp"
   signum = error "no signum on Exp"
+
+data Code =
+  Skip
+  | Code :>>: Code
+  | For Id Exp Code
+  | Allocate Id Length
+  | Write Id Ix Exp
+  deriving(Eq, Ord)
+
+instance Pretty Code where
+  pretty Skip = pretty "skip"
+  pretty (c :>>: c') = vsep $ [pretty c, pretty c']
+  pretty (For id lim body) =
+    prettySexp [pretty "for", prettySexp [pretty id, pretty "<=", pretty lim], pretty body]
+  pretty (Allocate id len) = prettySexp $ [pretty "alloc", pretty id, pretty len]
+  pretty (Write id ix exp) = prettySexp $ [pretty id <> brackets (pretty ix), pretty ":=", pretty exp]
+
+instance Show Code where
+  showsPrec _ = renderShowS . layoutPretty defaultLayoutOptions . pretty
+
 
 instance Semigroup Code where
   (<>) = (:>>:)
@@ -122,7 +162,7 @@ for_ :: Exp -- ^ Limit of the loop. Variable goes from 0 <= v <= limit
   -> (Exp -> CM ()) -- ^ Function that receives the loop induction variable and generates the loop body
   -> CM ()
 for_ lim f = do
-  id <- newID "indvar"
+  id <- newID "%iv"
   code <- extractCMCode $ f (Var id)
   appendCode $ For id lim code
 
@@ -170,7 +210,7 @@ apply (Append l p1 p2) k =
 -- | to the alocated array
 allocate :: Length -> CM (CMMem)
 allocate l  = do
-  id <- newID "arr"
+  id <- newID "#arr"
   appendCode $ Allocate id l
   return (CMMem id l)
 

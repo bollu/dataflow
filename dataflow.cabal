@@ -82,6 +82,8 @@ executable dfcc
                      , containers
                      , dataflow
                      , mtl
+                     , prettyprinter
+                     , prettyprinter-ansi-terminal
 
   -- Directories containing source files.
   hs-source-dirs:      src
