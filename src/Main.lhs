@@ -75,6 +75,14 @@ instance Pretty Exp where
   pretty (Literal l) = pretty l
   pretty (Index id ix) = pretty id <> brackets (pretty ix)
   pretty (e :+: e') = prettySexp $ [pretty "+", pretty e, pretty e']
+  pretty (e :*: e') = prettySexp $ [pretty "*", pretty e, pretty e']
+  pretty (Mod e e') = prettySexp $ [pretty "%", pretty e, pretty e']
+  pretty (Div e e') = prettySexp $ [pretty "/", pretty e, pretty e']
+  pretty (Eq e e') = prettySexp $ [pretty "==", pretty e, pretty e']
+  pretty (LEq e e') = prettySexp $ [pretty "<=", pretty e, pretty e']
+  pretty (Min e e') = prettySexp $ [pretty "min", pretty e, pretty e']
+  pretty (IfThenElse i t e) = 
+    prettySexp $ [pretty "if", pretty i, pretty t, pretty e]
 
 instance Show Exp where
   showsPrec _ = renderShowS . layoutPretty defaultLayoutOptions . pretty
@@ -189,11 +197,22 @@ data PushT where
   Append :: Length -> PushT -> PushT -> PushT
 
 -- | Compute the length of a PushT
-pushTLen :: PushT -> Length
-pushTLen (Generate l _ ) = l
-pushTLen (Use (CMMem _ l)) = l
-pushTLen (Map _ p) = pushTLen p
-pushTLen (Append l p1 p2) = pushTLen p1 + pushTLen p2
+pushTLength :: PushT -> Length
+pushTLength (Generate l _ ) = l
+pushTLength (Use (CMMem _ l)) = l
+pushTLength (Map _ p) = pushTLength p
+pushTLength (Append l p1 p2) = pushTLength p1 + pushTLength p2
+
+-- | code to index into the PushT
+index :: PushT -> Ix -> Exp
+index (Generate n ixf) ix = ixf ix
+index (Use (CMMem id _)) ix = Index id ix
+index (Map f p) ix = f (index p ix)
+index (Append l p p') ix =
+  IfThenElse
+    (Gt ix l)
+    (index p' (ix - l))
+    (index p ix)
 
 -- | Generate code from a pushT given an index and an expression for
 -- | the value at that index
@@ -224,7 +243,7 @@ mainArr = do
 toVector :: PushT -> CM (CMMem)
 toVector p = do
   -- | How do I get the length of the array I need to materialize?
-  writeloc <- allocate (pushTLen p)
+  writeloc <- allocate (pushTLength p)
   apply p $ \ix val -> (cmWrite writeloc ix val)
   return $ writeloc
 
@@ -232,12 +251,24 @@ toVector p = do
 toVector_ :: PushT -> CM ()
 toVector_ p = toVector p >> pure ()
 
+pushTZipWith :: (Exp -> Exp -> Exp) -> PushT -> PushT -> PushT
+pushTZipWith f a1 a2 =
+  Generate
+    (min (pushTLength a1) (pushTLength a2))
+    (\i -> f (index a1 i) (index a2 i))
 
+
+saxpy :: Exp -- ^ a
+  -> PushT -- ^ x
+  -> PushT -- ^ b
+  -> PushT
+saxpy a x b = pushTZipWith (\x b -> a * x + b) x b
 
 main :: IO ()
 main = do
-  let vec1 = CMMem "src" 10
-  let code = elimSkip $ genCMCode $ toVector_ (Use vec1)
+  let vec1 = CMMem "src1" 10
+  let vec2 = CMMem "src2" 10
+  let code = elimSkip $ genCMCode $ toVector_ $ saxpy 10 (Use vec1) (Generate 100 (\ix -> Div ix 2))
   print code
   
 \end{code}
