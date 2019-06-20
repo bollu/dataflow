@@ -30,6 +30,12 @@ data Code = Skip
   | Write Id Ix Exp
   deriving(Eq, Show, Ord)
 
+-- | Eliminate superfluous skip expressions in the code.
+elimSkip :: Code -> Code
+elimSkip (Skip :>>: c) = elimSkip c
+elimSkip (c :>>: Skip) = elimSkip c
+elimSkip (c :>>: c') = elimSkip c :>>: elimSkip c'
+elimSkip c = c
 
 data Value =
   IntVal Int
@@ -91,8 +97,8 @@ instance Monad CM where
     in (i'', c' <> c'', a'')
 
 -- | Generate a new ID
-newID :: CM Id
-newID = CM $ \i -> (i+1, mempty,  ("v-" <> show i))
+newID :: String -> CM Id
+newID name = CM $ \i -> (i+1, mempty,  (name <> "-" <> show i))
 
 -- | Append a section of code
 appendCode :: Code -> CM ()
@@ -116,7 +122,7 @@ for_ :: Exp -- ^ Limit of the loop. Variable goes from 0 <= v <= limit
   -> (Exp -> CM ()) -- ^ Function that receives the loop induction variable and generates the loop body
   -> CM ()
 for_ lim f = do
-  id <- newID
+  id <- newID "indvar"
   code <- extractCMCode $ f (Var id)
   appendCode $ For id lim code
 
@@ -134,6 +140,7 @@ cmWrite ::CMMem -- ^ Array to be written
   -> CM ()
 cmWrite (CMMem name _) ix v =
   appendCode $ Write name ix v
+
 -- | Defunctionalized push array
 data PushT where
   Generate :: Length -> (Ix -> Exp) -> PushT
@@ -141,6 +148,12 @@ data PushT where
   Map :: (Exp -> Exp) -> PushT -> PushT
   Append :: Length -> PushT -> PushT -> PushT
 
+-- | Compute the length of a PushT
+pushTLen :: PushT -> Length
+pushTLen (Generate l _ ) = l
+pushTLen (Use (CMMem _ l)) = l
+pushTLen (Map _ p) = pushTLen p
+pushTLen (Append l p1 p2) = pushTLen p1 + pushTLen p2
 
 -- | Generate code from a pushT given an index and an expression for
 -- | the value at that index
@@ -152,23 +165,39 @@ apply (Map f p) k = apply p (\i a -> k i (f a))
 apply (Append l p1 p2) k =
    apply p1 k >>
    apply p2 (\i a -> k (l + i) a)
-   
+
+-- | Code generate the allocation of an array and return a handle
+-- | to the alocated array
+allocate :: Length -> CM (CMMem)
+allocate l  = do
+  id <- newID "arr"
+  appendCode $ Allocate id l
+  return (CMMem id l)
+
 mainArr :: IO ()
 -- mainArr = mapM_ (print) (traceProcessor (initProcessor program))
 mainArr = do
         runNaiveExamples
         runFreeExamples
 
--- | Write a pushT into a CM
-writePushT ::PushT -> CMMem -> CM ()
-writePushT p cmem = apply p $ \ix val -> (cmWrite cmem ix val)
+-- | Materialize an array, and return a handle to the materialized array
+toVector :: PushT -> CM (CMMem)
+toVector p = do
+  -- | How do I get the length of the array I need to materialize?
+  writeloc <- allocate (pushTLen p)
+  apply p $ \ix val -> (cmWrite writeloc ix val)
+  return $ writeloc
+
+-- | Materialize an array and ignore the handle
+toVector_ :: PushT -> CM ()
+toVector_ p = toVector p >> pure ()
+
 
 
 main :: IO ()
 main = do
-  let vec1 = CMMem "v1" 10
-  let vec2 = CMMem "v2" 10
-  let code = genCMCode $ writePushT ((Use vec1)) vec2
+  let vec1 = CMMem "src" 10
+  let code = elimSkip $ genCMCode $ toVector_ (Use vec1)
   print code
   
 \end{code}
