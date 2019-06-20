@@ -71,7 +71,7 @@ addimm2 = DFArr (\((imm1, imm2), prim) -> (NeedDest (\addr -> AddImm2 imm1 imm2 
 -- Cut out the middlemen
 addimm2' :: Addr -> DFArr (Imm, Imm) Addr
 addimm2' addr = DFArr (\((imm1, imm2), prim) -> (addr, Seq (AddImm2 imm1 imm2 addr) prim))
-
+ 
 
 destmem :: Addr -> DFArr (NeedDest Addr) Addr
 destmem addr = DFArr (\(NeedDest f, prim)  -> 
